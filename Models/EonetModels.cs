@@ -1,5 +1,6 @@
 ﻿namespace SolCentre.Models
 {
+    //Earth Observatory Natural Event Tracker (EONET) 
     public class EonetModels
     {
         public List<EonetEvent> Events { get; set; }
