@@ -10,6 +10,7 @@ namespace SolCentre.Models
         public List<EonetEvent> Events { get; set; } = new();
     }
 
+
     public class EonetEvent
     {
         [JsonPropertyName("id")] public string Id { get; set; }

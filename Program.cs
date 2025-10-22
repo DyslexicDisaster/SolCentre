@@ -1,4 +1,5 @@
 using SolCentre.Components;
+using SolCentre.Services;
 
 namespace SolCentre
 {
@@ -12,10 +13,12 @@ namespace SolCentre
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
 
-            builder.Services.AddHttpClient<EonetService>(client =>
+            builder.Services.AddHttpClient("Eonet", client =>
             {
-                client.BaseAddress = new Uri("https://eonet.gsfc.nasa.gov/");
+                client.BaseAddress = new Uri("https://eonet.gsfc.nasa.gov/api/v2.1/");
             });
+
+            builder.Services.AddScoped<IEonetService, EonetService>();
 
             var app = builder.Build();
 

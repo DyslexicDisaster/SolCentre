@@ -1,38 +1,74 @@
-﻿// Add file: Services/IEonetService.cs
+﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Net.Http.Json;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using SolCentre.Models;
 
-public interface IEonetService
+namespace SolCentre.Services
 {
-    Task<List<EonetEvent>> GetRecentEventsAsync(int limit = 10, CancellationToken ct = default);
-}
-
-// Improved EonetService.cs (use IConfiguration & ILogger)
-public class EonetService : IEonetService
-{
-    private readonly HttpClient _http;
-    private readonly ILogger<EonetService> _logger;
-    private readonly string _eventsPath; // e.g. "api/v3/events"
-
-    public EonetService(HttpClient http, IConfiguration config, ILogger<EonetService> logger)
+    public class EonetService : IEonetService
     {
-        _http = http;
-        _logger = logger;
-        _eventsPath = config.GetValue<string>("Eonet:EventsPath") ?? "api/v3/events";
-    }
+        private readonly HttpClient _client;
+        private readonly ConcurrentDictionary<string, object> _cache = new();
 
-    public async Task<List<EonetEvent>> GetRecentEventsAsync(int limit = 10, CancellationToken ct = default)
-    {
-        try
+        public EonetService(IHttpClientFactory factory)
         {
-            // Use relative URI so BaseAddress made in Program is used
-            var url = $"{_eventsPath}?limit={limit}";
-            var res = await _http.GetFromJsonAsync<EonetResponse>(url, ct);
-            return res?.Events ?? new List<EonetEvent>();
+            if (factory == null) throw new ArgumentNullException(nameof(factory));
+            _client = factory.CreateClient("Eonet");
         }
-        catch (Exception ex)
+
+        public async Task<IReadOnlyList<EonetEvent>> GetEventsAsync(int limit = 50, int? days = null, string source = null, string status = null, CancellationToken ct = default)
         {
-            _logger.LogError(ex, "Failed to get EONET events");
-            return new List<EonetEvent>();
+            var sb = new StringBuilder("events?");
+            sb.Append($"limit={limit}");
+            if (days.HasValue) sb.Append($"&days={days.Value}");
+            if (!string.IsNullOrWhiteSpace(source)) sb.Append($"&source={Uri.EscapeDataString(source)}");
+            if (!string.IsNullOrWhiteSpace(status)) sb.Append($"&status={Uri.EscapeDataString(status)}");
+
+            var key = $"events_{limit}_{days}_{source}_{status}";
+            if (_cache.TryGetValue(key, out var cached) && cached is List<EonetEvent> list)
+                return list;
+
+            try
+            {
+                var resp = await _client.GetFromJsonAsync<EonetModels>(sb.ToString(), ct);
+                var events = resp?.Events ?? new List<EonetEvent>();
+                _cache[key] = events;
+                return events;
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception)
+            {
+                return Array.Empty<EonetEvent>();
+            }
+        }
+
+        public async Task<EonetEvent> GetEventByIdAsync(string id, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(id)) return null;
+            var key = $"event_{id}";
+            if (_cache.TryGetValue(key, out var cached) && cached is EonetEvent ev) return ev;
+
+            try
+            {
+                var e = await _client.GetFromJsonAsync<EonetEvent>($"events/{Uri.EscapeDataString(id)}", ct);
+                if (e != null) _cache[key] = e;
+                return e;
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        public Task<IReadOnlyList<EonetEvent>> GetEventsAsync(int limit = 50, int? days = null, string source = null, string status = null)
+        {
+            throw new NotImplementedException();
         }
     }
 }
