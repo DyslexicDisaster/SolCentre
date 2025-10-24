@@ -20,6 +20,13 @@ namespace SolCentre
 
             builder.Services.AddScoped<IEonetService, EonetService>();
 
+            builder.Services.AddHttpClient("NasaApi", client =>
+            {
+                client.BaseAddress = new Uri("https://api.nasa.gov/");
+            });
+
+            builder.Services.AddScoped<IApodService, ApodService>();
+
 
             var app = builder.Build();
 

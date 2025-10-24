@@ -1,0 +1,97 @@
+﻿@page "/apod"
+@using System.Globalization
+@using SolCentre.Models
+@using SolCentre.Services
+@inject IApodService ApodService
+@inject ILogger<ApodModel> Logger
+
+<h3>Astronomy Picture of the Day (APOD)</h3>
+
+@if (isLoading)
+{
+    <p>Loading today's APOD…</p>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+else if (apod != null)
+{
+    <div class="card mb-3">
+        <div class="card-body">
+            <h4>@apod.Title</h4>
+            <small class="text-muted">@apod.Date</small>
+
+            @if (apod.MediaType == "image")
+            {
+                <figure class="mt-2">
+                    <img src="@apod.Url" alt="@apod.Title" style="max-width:100%; height:auto;" />
+                    @if (!string.IsNullOrWhiteSpace(apod.HdUrl))
+                    {
+                        <figcaption><a target="_blank" rel="noopener noreferrer" href="@apod.HdUrl">View HD</a></figcaption>
+                    }
+                </figure>
+            }
+            else if (apod.MediaType == "video")
+            {
+                <div class="video-wrapper mt-2">
+                    <iframe src="@apod.Url" title="@apod.Title" width="100%" height="480" frameborder="0" allowfullscreen></iframe>
+                </div>
+            }
+            else
+            {
+                <p>Media type: @apod.MediaType — <a target="_blank" href="@apod.Url">Open</a></p>
+            }
+
+            <p class="explanation mt-3">@apod.Explanation</p>
+            <p class="meta text-muted">Service: @apod.ServiceVersion</p>
+        </div>
+    </div>
+}
+else
+{
+    <p>No APOD available.</p>
+}
+
+@code {
+    private ApodModel apod;
+    private bool isLoading;
+    private string errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Auto-load today's APOD on component initialization.
+        await LoadTodaysApod();
+    }
+
+    private async Task LoadTodaysApod()
+    {
+        isLoading = true;
+        errorMessage = null;
+        apod = null;
+        try
+        {
+            // Passing null requests today's APOD per service contract
+            var model = await ApodService.GetApodAsync(null);
+            if (model == null)
+            {
+                errorMessage = "APOD not available. Check API key, rate limits, or network.";
+                Logger.LogWarning("ApodService returned null for today's APOD.");
+            }
+            else
+            {
+                apod = model;
+                Logger.LogInformation("Loaded APOD for date {date} title={title}", model.Date, model.Title);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Error loading APOD: " + ex.Message;
+            Logger.LogError(ex, "Exception while loading today's APOD");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}
