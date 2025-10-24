@@ -20,6 +20,7 @@ namespace SolCentre
 
             builder.Services.AddScoped<IEonetService, EonetService>();
 
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.

@@ -1,0 +1,181 @@
+﻿@page "/events"
+@using SolCentre.Models
+@inject SolCentre.Services.IEonetService EonetService
+@inject ILogger<Events> Logger
+
+<h3>EONET Events</h3>
+
+<div class="mb-3 d-flex flex-wrap gap-3 align-items-end">
+    <div>
+        <label class="form-label">Status</label>
+        <select @bind="SelectedStatus" class="form-select" style="width:10rem">
+            <option value="">All</option>
+            <option value="open">Open</option>
+            <option value="closed">Closed</option>
+        </select>
+    </div>
+
+    <div>
+        <label class="form-label">Days</label>
+        <input type="number" @bind="Days" class="form-control d-inline-block ms-2" style="width:6rem" min="1" />
+    </div>
+
+    <div>
+        <label class="form-label">Limit</label>
+        <input type="number" @bind="Limit" class="form-control d-inline-block ms-2" style="width:6rem" min="1" max="200" />
+    </div>
+
+    <div>
+        <label class="form-label">Category</label>
+        <select @bind="SelectedCategory" class="form-select ms-2" style="width:12rem">
+            <option value="">All categories</option>
+            @foreach (var c in Categories)
+            {
+                <option value="@c">@c</option>
+            }
+        </select>
+    </div>
+
+    <div>
+        <button class="btn btn-primary ms-2" @onclick="Load">Load</button>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(LastError))
+{
+    <div class="alert alert-danger"><strong>Error:</strong> @LastError</div>
+}
+else if (IsLoading)
+{
+    <p>Loading…</p>
+}
+else if (FilteredEvents == null || FilteredEvents.Count == 0)
+{
+    <p>No events found.</p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-5">
+            @foreach (var ev in FilteredEvents)
+            {
+                <div class="card mb-2" role="button" tabindex="0"
+                     @onclick="() => SelectEvent(ev.Id)"
+                     @onkeydown="@(e => { if (e.Key == "Enter" || e.Key == " ") SelectEvent(ev.Id); })"
+                     style="cursor:pointer">
+                    <div class="card-body">
+                        <h5 class="card-title">@ev.Title</h5>
+                        <p class="card-text">
+                            <strong>Category:</strong> @ev.Categories?.FirstOrDefault()?.Title ?? "—"
+                            <br />
+                            <small>@(ev.Closed == null ? "Open" : $"Closed: {ev.Closed?.ToLocalTime():g}")</small>
+                        </p>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="col-md-7">
+            @if (!string.IsNullOrEmpty(SelectedEventId))
+            {
+                <EventDetail EventId="@SelectedEventId" />
+            }
+            else
+            {
+                <p class="text-muted">Select an event to view details.</p>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private List<EonetEvent> EventsList = new();
+    private List<EonetEvent> FilteredEvents = new();
+    private bool IsLoading;
+    private string LastError;
+    private string SelectedStatus = "open";
+    private int Days = 30;
+    private int Limit = 50;
+    private string SelectedCategory = "";
+    private string SelectedEventId;
+    private List<string> Categories = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        IsLoading = true;
+        LastError = null;
+        try
+        {
+            Logger.LogInformation("Loading events: days={days}, status={status}", Days, SelectedStatus);
+            var api = await EonetService.GetEventsAsync(limit: Limit, days: Days, status: string.IsNullOrWhiteSpace(SelectedStatus) ? null : SelectedStatus);
+            EventsList = api?.ToList() ?? new List<EonetEvent>();
+
+            // Build category list from API results (unique, ordered)
+            Categories = EventsList
+                .SelectMany(e => e.Categories ?? Enumerable.Empty<EonetCategory>())
+                .Select(c => c.Title)
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Distinct()
+                .OrderBy(t => t)
+                .ToList();
+
+            ApplyFilter();
+
+            // Auto-select first event for convenience (if none selected)
+            if (string.IsNullOrEmpty(SelectedEventId) && FilteredEvents.Any())
+            {
+                SelectedEventId = FilteredEvents.First().Id;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load events");
+            LastError = ex.Message;
+            EventsList = new List<EonetEvent>();
+            FilteredEvents = new List<EonetEvent>();
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedCategory))
+        {
+            FilteredEvents = EventsList;
+        }
+        else
+        {
+            FilteredEvents = EventsList
+                .Where(e => e.Categories?.Any(c => c.Title == SelectedCategory) == true)
+                .ToList();
+        }
+    }
+
+    private void SelectEvent(string id)
+    {
+        SelectedEventId = id;
+        Logger.LogInformation("Selected event {id}", id);
+    }
+
+    // reapply filter when the selected category changes (two-way binding triggers this setter)
+    private string _selectedCategoryBacking;
+    private string SelectedCategoryBacking
+    {
+        get => _selectedCategoryBacking;
+        set
+        {
+            _selectedCategoryBacking = value;
+            SelectedCategory = value;
+            ApplyFilter();
+        }
+    }
+}

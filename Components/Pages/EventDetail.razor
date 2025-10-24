@@ -1,0 +1,123 @@
+﻿@using SolCentre.Models
+@inject SolCentre.Services.IEonetService EonetService
+@inject ILogger<EventDetail> Logger
+
+@if (IsLoading)
+{
+    <div>Loading event details…</div>
+}
+else if (Ev == null)
+{
+    <div class="text-muted">Event not found.</div>
+}
+else
+{
+    <div class="card">
+        <div class="card-body">
+            <h4>@Ev.Title</h4>
+            @if (!string.IsNullOrWhiteSpace(Ev.Description))
+            {
+                <p>@Ev.Description</p>
+            }
+
+            <p>
+                <strong>Category:</strong> @Ev.Categories?.FirstOrDefault()?.Title ?? "—"
+                &nbsp;&nbsp;
+                <strong>Status:</strong> @(Ev.Closed == null ? "Open" : "Closed")
+            </p>
+
+            <h5>Geometry timeline</h5>
+            <ul>
+                @if (Ev.Geometries?.Any() == true)
+                {
+                    foreach (var g in Ev.Geometries.OrderByDescending(x => x.Date))
+                    {
+                        <li>
+                            <strong>@g.Date.ToLocalTime():</strong>
+                            @g.Type — @FormatCoordinates(g)
+                        </li>
+                    }
+                }
+                else
+                {
+                    <li>No geometry available.</li>
+                }
+            </ul>
+
+            <h5>Sources</h5>
+            <ul>
+                @if (Ev.Sources?.Any() == true)
+                {
+                    foreach (var s in Ev.Sources)
+                    {
+                        <li><a href="@s.Link" target="_blank" rel="noopener">@s.Id</a> @if(!string.IsNullOrEmpty(s.Source)) {
+                        <span class="text-muted">(@s.Source)</span>
+                    }
+        </li>
+                }
+            }
+                        else
+            {
+                <li>No sources.</li>
+            }
+        </ul>
+    </div>
+</div>
+}
+
+@code {
+    [Parameter] public string EventId { get; set; }
+
+    private EonetEvent Ev;
+    private bool IsLoading = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.IsNullOrWhiteSpace(EventId))
+        {
+            Ev = null;
+            IsLoading = false;
+            return;
+        }
+
+        IsLoading = true;
+        Logger.LogInformation("Loading details for event {id}", EventId);
+
+        try
+        {
+            Ev = await EonetService.GetEventByIdAsync(EventId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading event details for {id}", EventId);
+            Ev = null;
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private string FormatCoordinates(EonetGeometry g)
+    {
+        try
+        {
+            if (g?.Coordinates.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                var arr = g.Coordinates;
+                if (arr.GetArrayLength() >= 2)
+                {
+                    var lon = arr[0].GetDouble();
+                    var lat = arr[1].GetDouble();
+                    return $"lat {lat:N4}, lon {lon:N4}";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "FormatCoordinates failed");
+        }
+        return "N/A";
+    }
+}

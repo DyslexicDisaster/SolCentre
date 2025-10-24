@@ -1,0 +1,38 @@
+﻿@using SolCentre.Models
+@using Microsoft.AspNetCore.Components.Web
+
+<div class="card mb-2" role="button" tabindex="0" @onclick="OnClick" @onkeydown="HandleKey" style="cursor:pointer;">
+    <div class="card-body">
+        <h5 class="card-title">@Event.Title</h5>
+        <p class="card-text">
+            <strong>Category:</strong> @Event.Categories?.FirstOrDefault()?.Title ?? "—"
+            <br />
+            <small>@(Event.Closed == null ? "Open" : $"Closed: {Event.Closed?.ToLocalTime():g}")</small>
+            @if (Event.Id?.StartsWith("LOCAL_") == true)
+            {
+                <span class="badge bg-secondary ms-2">local</span>
+            }
+        </p>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EonetEvent Event { get; set; }
+    [Parameter] public EventCallback<string> OnSelect { get; set; }
+
+    private async Task OnClick()
+    {
+        if (Event?.Id != null)
+        {
+            await OnSelect.InvokeAsync(Event.Id);
+        }
+    }
+
+    private async Task HandleKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" || e.Key == " ")
+        {
+            await OnClick();
+        }
+    }
+}

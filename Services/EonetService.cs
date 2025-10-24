@@ -68,7 +68,7 @@ namespace SolCentre.Services
 
         public Task<IReadOnlyList<EonetEvent>> GetEventsAsync(int limit = 50, int? days = null, string source = null, string status = null)
         {
-            throw new NotImplementedException();
+            return GetEventsAsync(limit, days, source, status, CancellationToken.None);
         }
     }
 }
