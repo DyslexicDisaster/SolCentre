@@ -6,26 +6,30 @@
 {
     <div>Loading event details…</div>
 }
+@* If no event found showmessage *@
 else if (Ev == null)
 {
     <div class="text-muted">Event not found.</div>
 }
 else
 {
+    @* Display event details in a card *@
     <div class="card">
         <div class="card-body">
+            @* Event title *@
             <h4>@Ev.Title</h4>
+
             @if (!string.IsNullOrWhiteSpace(Ev.Description))
             {
                 <p>@Ev.Description</p>
             }
-
             <p>
                 <strong>Category:</strong> @Ev.Categories?.FirstOrDefault()?.Title ?? "—"
                 &nbsp;&nbsp;
                 <strong>Status:</strong> @(Ev.Closed == null ? "Open" : "Closed")
             </p>
 
+            @* Geometry timeline header *@
             <h5>Geometry timeline</h5>
             <ul>
                 @if (Ev.Geometries?.Any() == true)
@@ -50,29 +54,34 @@ else
                 {
                     foreach (var s in Ev.Sources)
                     {
-                        <li><a href="@s.Link" target="_blank" rel="noopener">@s.Id</a> @if(!string.IsNullOrEmpty(s.Source)) {
-                        <span class="text-muted">(@s.Source)</span>
+                        <li>
+                            <a href="@s.Link" target="_blank" rel="noopener">@s.Id</a>
+                            @if (!string.IsNullOrEmpty(s.Source))
+                            {
+                                <span class="text-muted">(@s.Source)</span>
+                            }
+                        </li>
                     }
-        </li>
                 }
-            }
-                        else
-            {
-                <li>No sources.</li>
-            }
-        </ul>
+                else
+                {
+                    <li>No sources.</li>
+                }
+            </ul>
+        </div>
     </div>
-</div>
 }
 
 @code {
-    [Parameter] public string EventId { get; set; }
+    [Parameter] public string EventId { get; set; } 
 
-    private EonetEvent Ev;
-    private bool IsLoading = true;
+    private EonetEvent Ev;          
+    private bool IsLoading = true;   
 
+    // Called whenever component parameters change 
     protected override async Task OnParametersSetAsync()
     {
+        // If no EventId provided, clear state and stop.
         if (string.IsNullOrWhiteSpace(EventId))
         {
             Ev = null;
@@ -85,10 +94,12 @@ else
 
         try
         {
+            // call EonetService for the full event by id.
             Ev = await EonetService.GetEventByIdAsync(EventId);
         }
         catch (Exception ex)
         {
+            // Log and clear event on failure.
             Logger.LogError(ex, "Error loading event details for {id}", EventId);
             Ev = null;
         }
@@ -99,10 +110,12 @@ else
         }
     }
 
+    // Format geometry coordinates to "lat X, lon Y" when possible.
     private string FormatCoordinates(EonetGeometry g)
     {
         try
         {
+            // Expect coordinates stored as a JSON array (lon, lat).
             if (g?.Coordinates.ValueKind == System.Text.Json.JsonValueKind.Array)
             {
                 var arr = g.Coordinates;
@@ -116,6 +129,7 @@ else
         }
         catch (Exception ex)
         {
+            // Log a warning if parsing fails and return N/A.
             Logger.LogWarning(ex, "FormatCoordinates failed");
         }
         return "N/A";

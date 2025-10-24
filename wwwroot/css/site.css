@@ -58,15 +58,6 @@ body {
     font-size: 1.1rem;
 }
 
-    .site-brand .logo {
-        width: 36px;
-        height: 36px;
-        border-radius: 8px;
-        background: linear-gradient(135deg,var(--accent),var(--accent-2));
-        display: inline-block;
-        box-shadow: 0 6px 18px rgba(30,80,200,0.08);
-    }
-
 .site-links {
     display: flex;
     gap: 8px;
@@ -154,30 +145,27 @@ body {
     :root {
         --page-max: 1400px;
     }
-    /* increases horizontal real estate */
+   
 }
 
-/* main events container: make left column wider, right column flexible */
 .events-grid {
     display: grid;
-    grid-template-columns: minmax(380px, 520px) 1fr; /* left = 380-520px, right = remaining */
+    grid-template-columns: minmax(380px, 520px) 1fr; 
     gap: 28px;
     align-items: start;
 }
 
-/* ensure the events-list uses full width of left column */
+
 .events-list {
     width: 100%;
 }
 
-    /* column that stacks cards nicely (keeps vertical flow) */
     .events-list .cards-column {
         display: flex;
         flex-direction: column;
         gap: 14px;
     }
 
-/* event card improvements */
 .event-card {
     width: 100%;
     padding: 16px 18px;
@@ -189,7 +177,6 @@ body {
     display: block;
 }
 
-    /* larger title, more comfortable spacing */
     .event-card h5 {
         margin: 0 0 6px;
         font-size: 1.05rem;
@@ -202,14 +189,12 @@ body {
     font-size: 0.95rem;
 }
 
-/* emphasize selected card if you want */
 .event-card.selected {
     box-shadow: 0 14px 36px rgba(30,80,200,0.08);
     transform: translateY(-4px);
     border-color: rgba(30,80,200,0.12);
 }
 
-/* detail pane: keep it roomy */
 .detail-pane {
     min-height: 120px;
     padding: 16px;
@@ -219,7 +204,6 @@ body {
     box-shadow: var(--shadow-sm);
 }
 
-/* responsive: when narrow screens stack vertically */
 @media (max-width:900px) {
     .events-grid {
         grid-template-columns: 1fr;
@@ -234,6 +218,18 @@ body {
         order: 2;
     }
 }
+.events-controls {
+    display: flex; /* keep current flex behavior */
+    flex-wrap: wrap; /* allow wrapping on small screens */
+    gap: 0.75rem; /* consistent spacing between controls */
+    align-items: flex-start; /* align controls to the top (not bottom) */
+    margin-bottom: 1rem; /* spacing below the controls */
+}
+
+/* Ensure the events grid aligns its items to the top of each row */
+.events-grid {
+    align-items: start; /* prevents the right column from being pushed down */
+}
 
 /* APOD image */
 .apod-card img {
@@ -242,7 +238,6 @@ body {
     display: block
 }
 
-/* forms & controls */
 .form-control {
     padding: 8px 10px;
     border-radius: 8px;
@@ -251,7 +246,6 @@ body {
     color: #0b2540;
 }
 
-/* small utilities */
 .lead {
     font-size: 1.05rem;
     color: var(--muted)

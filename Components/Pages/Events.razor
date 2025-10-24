@@ -5,7 +5,7 @@
 
 <h3>EONET Events</h3>
 
-<div class="mb-3 d-flex flex-wrap gap-3 align-items-end">
+<div class="events-controls mb-3 d-flex flex-wrap gap-3">
     <div>
         <label class="form-label">Status</label>
         <select @bind="SelectedStatus" class="form-select" style="width:10rem">
@@ -17,16 +17,19 @@
 
     <div>
         <label class="form-label">Days</label>
+        @* How many past days to include when querying the API *@
         <input type="number" @bind="Days" class="form-control d-inline-block ms-2" style="width:6rem" min="1" />
     </div>
 
     <div>
         <label class="form-label">Limit</label>
+        @* Maximum number of events to request from the API *@
         <input type="number" @bind="Limit" class="form-control d-inline-block ms-2" style="width:6rem" min="1" max="200" />
     </div>
 
     <div>
         <label class="form-label">Category</label>
+        @* Filter by category *@
         <select @bind="SelectedCategory" class="form-select ms-2" style="width:12rem">
             <option value="">All categories</option>
             @foreach (var c in Categories)
@@ -37,12 +40,15 @@
     </div>
 
     <div>
+        @* Manual reload button to re-run the query with the selected filters *@
         <button class="btn btn-primary ms-2" @onclick="Load">Load</button>
     </div>
 </div>
 
+@* --- Error/null states --- *@
 @if (!string.IsNullOrEmpty(LastError))
 {
+    @* Show error message when loading fails *@
     <div class="alert alert-danger"><strong>Error:</strong> @LastError</div>
 }
 else if (IsLoading)
@@ -51,10 +57,12 @@ else if (IsLoading)
 }
 else if (FilteredEvents == null || FilteredEvents.Count == 0)
 {
+    @* Inform the user when no events match the current filters *@
     <p>No events found.</p>
 }
 else
 {
+    @* --- Events list and detail layout (left = list, right = detail) --- *@
     <div class="row">
         <div class="col-md-5">
             @foreach (var ev in FilteredEvents)
@@ -89,33 +97,43 @@ else
 }
 
 @code {
+    // Events fetched from the EONET API
     private List<EonetEvent> EventsList = new();
+
+    // Events after applying the current client-side filters
     private List<EonetEvent> FilteredEvents = new();
-    private bool IsLoading;
-    private string LastError;
+
+    private bool IsLoading;                
+    private string LastError;             
     private string SelectedStatus = "open";
-    private int Days = 30;
-    private int Limit = 50;
-    private string SelectedCategory = "";
-    private string SelectedEventId;
+    private int Days = 30;                 
+    private int Limit = 50;              
+    private string SelectedCategory = "";  
+    private string SelectedEventId;      
     private List<string> Categories = new();
 
+    //   load events on component initialization
     protected override async Task OnInitializedAsync()
     {
         await Load();
     }
 
+    // Load events from the EonetService, build categories, apply filter, and auto-select first item.
     private async Task Load()
     {
         IsLoading = true;
         LastError = null;
+
         try
         {
             Logger.LogInformation("Loading events: days={days}, status={status}", Days, SelectedStatus);
+
+            // Call the service to get events with the chosen filters
             var api = await EonetService.GetEventsAsync(limit: Limit, days: Days, status: string.IsNullOrWhiteSpace(SelectedStatus) ? null : SelectedStatus);
+
+            // Ensure we have a non-null list to work with
             EventsList = api?.ToList() ?? new List<EonetEvent>();
 
-            // Build category list from API results (unique, ordered)
             Categories = EventsList
                 .SelectMany(e => e.Categories ?? Enumerable.Empty<EonetCategory>())
                 .Select(c => c.Title)
@@ -124,9 +142,10 @@ else
                 .OrderBy(t => t)
                 .ToList();
 
+            // Apply client-side category filter to the loaded events
             ApplyFilter();
 
-            // Auto-select first event for convenience (if none selected)
+            // Auto-select the first event to show details immediately
             if (string.IsNullOrEmpty(SelectedEventId) && FilteredEvents.Any())
             {
                 SelectedEventId = FilteredEvents.First().Id;
@@ -134,6 +153,7 @@ else
         }
         catch (Exception ex)
         {
+            // Log the exception
             Logger.LogError(ex, "Failed to load events");
             LastError = ex.Message;
             EventsList = new List<EonetEvent>();
@@ -141,11 +161,13 @@ else
         }
         finally
         {
+            // Clear loading flag and request a UI update
             IsLoading = false;
             StateHasChanged();
         }
     }
 
+    // Apply the category filter; show all events when no category selected
     private void ApplyFilter()
     {
         if (string.IsNullOrWhiteSpace(SelectedCategory))
@@ -160,13 +182,13 @@ else
         }
     }
 
+    // Set the selected event id
     private void SelectEvent(string id)
     {
         SelectedEventId = id;
         Logger.LogInformation("Selected event {id}", id);
     }
 
-    // reapply filter when the selected category changes (two-way binding triggers this setter)
     private string _selectedCategoryBacking;
     private string SelectedCategoryBacking
     {
